@@ -1,100 +1,66 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ARIDAQ | SECURE CORE</title>
-    <style>
-        body {
-            background-color: #000;
-            color: #00FF41; /* Classic Matrix Green */
-            font-family: 'Courier New', Courier, monospace;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            overflow: hidden;
-        }
-        .container {
-            border: 1px solid #00FF41;
-            padding: 30px;
-            box-shadow: 0 0 15px #00FF41;
-            background: rgba(0, 20, 0, 0.9);
-            width: 80%;
-            max-width: 600px;
-        }
-        h1 { text-shadow: 0 0 10px #00FF41; letter-spacing: 5px; }
-        input {
-            background: #000;
-            border: 1px solid #00FF41;
-            color: #00FF41;
-            padding: 10px;
-            width: 100px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        button {
-            background: #00FF41;
-            color: #000;
-            border: none;
-            padding: 10px 20px;
-            font-weight: bold;
-            cursor: pointer;
-            text-transform: uppercase;
-        }
-        button:hover { background: #008F11; }
-        #output {
-            margin-top: 30px;
-            text-align: left;
-            border-top: 1px dashed #00FF41;
-            padding-top: 20px;
-            font-size: 0.9em;
-        }
-        .loading { color: yellow; }
-    </style>
-</head>
-<body>
+<style>
+    /* Add this to your existing styles */
+    #console {
+        background: #000;
+        border: 1px solid #00FF41;
+        height: 200px;
+        overflow-y: scroll;
+        padding: 10px;
+        margin-top: 20px;
+        font-size: 0.8em;
+        text-align: left;
+        color: #00FF41;
+    }
+    .glitch { animation: glitch 1s linear infinite; }
+    @keyframes glitch {
+        2%, 64% { transform: translate(2px, 0) skew(0deg); }
+        4%, 60% { transform: translate(-2px, 0) skew(0deg); }
+    }
+</style>
 
-    <div class="container">
-        <h1>ARIDAQ PROTOCOL</h1>
-        <p>> SYSTEM STATUS: ENCRYPTED_READY</p>
-        <p>> ENTER NODE COUNT (N):</p>
-        <input type="number" id="nodeCount" value="1000">
-        <br>
-        <button onclick="runProtocol()">Execute Manifold Search</button>
-
-        <div id="output">
-            <p>> Awaiting user command...</p>
-        </div>
+<div class="container">
+    <h1 class="glitch">ARIDAQ PROTOCOL v2.0</h1>
+    <p>NODE INPUT: <input type="number" id="nodeCount" value="1000000"></p>
+    <button onclick="executeProtocol()">RUN DEEP SCAN</button>
+    
+    <div id="console">
+        <p>> SYSTEM IDLE...</p>
     </div>
+</div>
 
-    <script>
-        async function runProtocol() {
-            const n = document.getElementById('nodeCount').value;
-            const output = document.getElementById('output');
-            output.innerHTML = '<p class="loading">> ACCESSING MANIFOLD... PLEASE WAIT...</p>';
+<script>
+    function executeProtocol() {
+        const n = document.getElementById('nodeCount').value;
+        const consoleBox = document.getElementById('console');
+        consoleBox.innerHTML = ''; // Clear console
 
-            try {
-                const response = await fetch('/solve', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ n: n })
+        // Use EventSource for the real-time "Stream"
+        fetch('/solve', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({n: n})
+        }).then(response => {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            function read() {
+                reader.read().then(({done, value}) => {
+                    if (done) return;
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    lines.forEach(line => {
+                        if (line.startsWith('data: ')) {
+                            const data = JSON.parse(line.replace('data: ', ''));
+                            const p = document.createElement('p');
+                            p.textContent = `> ${data.message || 'PROCESSING...'}`;
+                            consoleBox.appendChild(p);
+                            consoleBox.scrollTop = consoleBox.scrollHeight;
+                        }
+                    });
+                    read();
                 });
-                const data = await response.json();
-
-                output.innerHTML = `
-                    <p>> --- SCAN COMPLETE ---</p>
-                    <p>> NODES PROCESSED: ${data.nodes}</p>
-                    <p>> EXECUTION TIME: ${data.time}s</p>
-                    <p>> SYSTEM POTENTIAL: ${data.potential}</p>
-                    <p>> STATUS: <span style="color:white; background:green;">&nbsp;${data.status}&nbsp;</span></p>
-                `;
-            } catch (e) {
-                output.innerHTML = '<p style="color:red;">> ERROR: CORE_BREACH_FAILED</p>';
             }
-        }
-    </script>
-</body>
-</html>
+            read();
+        });
+    }
+</script>

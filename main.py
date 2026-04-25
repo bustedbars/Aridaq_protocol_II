@@ -4,104 +4,50 @@ import random
 
 app = Flask(__name__)
 
-# --- THE ARIDAQ CORE LOGIC ---
-SCALING_FACTOR = 3.17 * 10**9  
-DEBYE_LENGTH = 5000             
-SCREENING_CONST = 0.026      
-
-# --- BIOLOGY CONSTANTS (Simplified) ---
-AMINO_ACIDS = "ACDEFGHIKLMNPQRSTVWY" # Standard 20 amino acids
-
-def calculate_yukawa_potential(r, debye=DEBYE_LENGTH):
-    if r <= 0: r = 1e-9 # Avoid division by zero
-    # f * e^(-kr) / r
-    u = (SCALING_FACTOR * math.exp(-r/debye)) / (r + SCREENING_CONST)
-    return u
-
-def mutate_sequence(sequence):
-    """Randomly swaps one amino acid in the sequence."""
-    if not sequence: return sequence
-    seq_list = list(sequence)
-    index_to_mutate = random.randint(0, len(seq_list) - 1)
-    
-    current_aa = seq_list[index_to_mutate]
-    available_mutations = [aa for aa in AMINO_ACIDS if aa != current_aa]
-    new_aa = random.choice(available_mutations)
-    
-    seq_list[index_to_mutate] = new_aa
-    mutated_seq = "".join(seq_list)
-    
-    return mutated_seq, index_to_mutate, current_aa, new_aa
-
-@app.route('/')
-def index():
-    return render_template('index.html')
+def get_aridaq_potential(r, debye, salt):
+    # Core Formula: f * e^(-kr) / (r + screening)
+    k = 1 / (debye * math.sqrt(salt + 0.00001))
+    return (3.17e9 * math.exp(-k * r)) / (r + 0.026)
 
 @app.route('/simulate_bio', methods=['POST'])
 def simulate_bio():
     data = request.json
-    sequence = data.get('sequence', 'MKTIIALSYIFCLVFA')
-    temperature = int(data.get('temp', 310))
-    is_mutation = data.get('mutation_mode', False)
+    seq = data.get('sequence', 'MKTIIALSYIFCLVFA')
+    ph = float(data.get('ph', 7.4))
+    salt = float(data.get('salt', 0.15))
     
-    # We always simulate the normal one first, then potentially the mutated one
-    original_sequence = data.get('original_sequence', sequence)
-    active_sequence = sequence
-    
-    if is_mutation:
-        active_sequence, mutated_index, old_aa, new_aa = mutate_sequence(sequence)
-        
-    # Standard seed for normal, different seed for mutation
-    random.seed(42 if not is_mutation else 101) 
-    
+    debye = 5000 + ((7.4 - ph) * 200)
     nodes = []
-    total_u = 0
+    last_pos = [0, 0, 0]
     
-    # We simulate a slightly more structured "movie" based on the sequence
-    # For a mutation, we introduce instability or a "collision"
-    for i in range(len(active_sequence)):
-        # Introduce temperature effects (simulated volatility)
-        temp_volatility = (temperature - 310) / 100 
+    for i, char in enumerate(seq):
+        # Using a helical growth pattern for "Real" folding appearance
+        angle = i * 0.5
+        radius = 2.0 + random.uniform(-0.5, 0.5)
         
-        # Base Aridaq placement logic
-        base_x = random.uniform(-10, 10)
-        base_y = random.uniform(-10, 10)
-        base_z = random.uniform(-10, 10)
+        new_x = last_pos[0] + radius * math.cos(angle)
+        new_y = last_pos[1] + 1.5 # Consistent rise per residue
+        new_z = last_pos[2] + radius * math.sin(angle)
         
-        # For mutation, add instability at the mutated index
-        if is_mutation and i == mutated_index:
-            base_x += random.uniform(-5, 5) * (1 + temp_volatility)
-            base_z += random.uniform(-5, 5) * (1 + temp_volatility)
-
+        r = math.sqrt(new_x**2 + new_y**2 + new_z**2)
+        pot = get_aridaq_potential(r, debye, salt)
+        
+        # Determine "Color Type" based on potential
+        color_type = "helix" if pot > 1e10 else "loop"
+        
         nodes.append({
-            "id": i,
-            "x": base_x,
-            "y": base_y,
-            "z": base_z,
-            "potential": 0 # We will calc this next
+            "id": i, "type": char, "struct": color_type,
+            "x": new_x, "y": new_y, "z": new_z,
+            "u": f"{pot:.2e}"
         })
-        
-    # --- The "Movie" and Bond Angles ---
-    # We use Aridaq scaling to determine relative "forces"
-    for i in range(len(nodes)):
-        r = math.sqrt(nodes[i]['x']**2 + nodes[i]['y']**2 + nodes[i]['z']**2)
-        nodes[i]['potential'] = calculate_yukawa_potential(r)
-        total_u += nodes[i]['potential']
-        
-    response_data = {
-        "nodes": nodes,
-        "total_potential": f"{total_u:.4e}",
-        "active_sequence": active_sequence,
-        "status": "FOLDING_COMPLETE"
-        
-    }
-    
-    if is_mutation:
-        response_data['mutation_details'] = f"{old_aa}{mutated_index+1}{new_aa}"
-        response_data['original_sequence'] = original_sequence
+        last_pos = [new_x, new_y, new_z]
 
-    return jsonify(response_data)
+    return jsonify({"nodes": nodes, "metrics": {"debye": debye, "salt": salt}})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+    app.run(host='0.0.0.0', port=5000)
 
+    
+        
+    
+    

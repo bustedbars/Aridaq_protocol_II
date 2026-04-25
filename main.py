@@ -1,8 +1,11 @@
 from flask import Flask, render_template, request, jsonify
-import math
-import random
 
 app = Flask(__name__)
+
+# This is the part that fixes the "Not Found" error!
+@app.route('/')
+def home():
+    return render_template('index.html')
 
 def get_aridaq_potential(r, debye, salt):
     # Core Formula: f * e^(-kr) / (r + screening)

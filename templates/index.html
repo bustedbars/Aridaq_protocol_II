@@ -1,179 +1,137 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ARIDAQ OS v4.0 | Bio-Security Core</title>
+    <title>ARIDAQ | RIBBON ANALYZER</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body { 
-            background: #000; 
-            color: #00FF41; 
-            font-family: 'Courier New', monospace; 
-            margin: 0; 
-            overflow: hidden; 
+        body { background: #050505; color: #00FF41; font-family: 'Helvetica', sans-serif; margin: 0; overflow: hidden; }
+        #ui-overlay { position: absolute; top: 0; left: 0; width: 320px; padding: 25px; background: rgba(0,0,0,0.9); height: 100vh; border-right: 1px solid #333; z-index: 10; }
+        .label-tag { 
+            position: absolute; background: rgba(0,255,65,0.2); border: 1px solid #00FF41;
+            padding: 2px 6px; font-size: 10px; color: #fff; pointer-events: none; border-radius: 4px;
         }
-        #ui-layer { 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 320px; 
-            padding: 25px; 
-            background: rgba(0, 20, 0, 0.9); 
-            height: 100vh; 
-            border-right: 2px solid #00FF41; 
-            z-index: 10; 
-            overflow-y: auto;
-            box-shadow: 5px 0 15px rgba(0, 255, 65, 0.2);
-        }
-        .glitch { 
-            font-size: 1.5em;
-            text-shadow: 0 0 10px #00FF41;
-            margin-bottom: 20px;
-            letter-spacing: 2px;
-        }
-        .mode-btn { 
-            background: #000; 
-            color: #00FF41; 
-            border: 1px solid #00FF41; 
-            padding: 12px; 
-            width: 100%; 
-            margin-bottom: 12px; 
-            cursor: pointer; 
-            font-weight: bold;
-            transition: 0.3s;
-        }
-        .mode-btn:hover { background: rgba(0, 255, 65, 0.1); }
-        .mode-btn.active { background: #00FF41; color: #000; }
-        .input-group { margin-bottom: 18px; font-size: 0.85em; }
-        input, select { 
-            background: #000; 
-            border: 1px solid #00FF41; 
-            color: #00FF41; 
-            width: 95%; 
-            padding: 5px;
-            margin-top: 5px;
-        }
-        #canvas-container { 
-            position: absolute; 
-            top: 0; 
-            right: 0; 
-            width: calc(100% - 370px); 
-            height: 100vh; 
-        }
-        #mutation-controls {
-            margin-top: 20px;
-            padding: 15px;
-            border: 1px dashed #FFD700;
-            display: none;
-            background: rgba(50, 50, 0, 0.2);
-        }
-        .stats-overlay { 
-            position: absolute; 
-            bottom: 30px; 
-            right: 30px; 
-            background: rgba(0,0,0,0.8); 
-            padding: 20px; 
-            border: 1px solid #00FF41; 
-            font-size: 0.9em;
-        }
+        input, textarea { background: #111; border: 1px solid #333; color: #00FF41; width: 100%; margin-bottom: 15px; padding: 8px; }
+        button { background: #00FF41; color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; border-radius: 5px; }
+        #viewport { position: fixed; width: 100vw; height: 100vh; }
     </style>
 </head>
 <body>
 
-<div id="ui-layer">
-    <div class="glitch">ARIDAQ PROTOCOL v4.0</div>
+<div id="viewport"></div>
+<div id="label-container"></div>
+
+<div id="ui-overlay">
+    <h2 style="color: #fff; font-size: 18px;">ARIDAQ PROTOCOL II</h2>
+    <p style="font-size: 10px; color: #666;">BIOMOLECULAR FOLDING ENGINE</p>
     
-    <div class="input-group">
-        <button class="mode-btn active" onclick="switchMode('bio')">BIO-MOLECULAR</button>
-        <button class="mode-btn" onclick="switchMode('opt')">LOGISTICS OPTIMIZATION</button>
-    </div>
-
-    <div id="bio-inputs">
-        <div class="input-group">
-            <label>AMINO ACID SEQUENCE</label>
-            <input type="text" id="sequence" value="MKTIIALSYIFCLVFA">
-        </div>
-        <div class="input-group">
-            <label>TEMP (K): <span id="t-val">310</span></label>
-            <input type="range" min="273" max="400" value="310" id="temp" oninput="document.getElementById('t-val').innerText=this.value">
-        </div>
-        <button class="mode-btn" style="background: #00FF41; color: #000;" onclick="runBio()">FOLD NORMAL PROTEIN</button>
-        
-        <div id="mutation-controls">
-            <p style="color:#FFD700;">> CORE BREACH DETECTED</p>
-            <p id="mutated-display" style="word-break: break-all; font-size:0.8em;"></p>
-            <button class="mode-btn" style="background: #FFD700; color: #000;" onclick="runBio(true)">INJECT MUTATION</button>
-        </div>
-    </div>
-
-    <div id="log" style="font-size: 0.7em; margin-top: 20px; border-top: 1px solid #333; padding-top:10px;">
-        <p>> System Standby...</p>
-    </div>
-</div>
-
-<div id="canvas-container"></div>
-
-<div class="stats-overlay">
-    <p>DEBYE LENGTH: 5000Å</p>
-    <p>POTENTIAL: <span id="pot-display">0.00e+00</span></p>
+    <label>PEPTIDE SEQUENCE</label>
+    <textarea id="seq">MKTIIALSYIFCLVFAWREK</textarea>
+    
+    <label>pH LEVEL</label>
+    <input type="number" id="ph" step="0.1" value="7.4">
+    
+    <label>SALT (M)</label>
+    <input type="number" id="salt" step="0.01" value="0.15">
+    
+    <button onclick="runBio()">GENERATE RIBBON MOVIE</button>
 </div>
 
 <script>
-    // --- 3D ENGINE ---
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, (window.innerWidth-370)/window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(window.innerWidth - 370, window.innerHeight);
-    document.getElementById('canvas-container').appendChild(renderer.domElement);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('viewport').appendChild(renderer.domElement);
+    
+    const molGroup = new THREE.Group();
+    scene.add(molGroup);
+    camera.position.z = 40;
 
-    const proteinGroup = new THREE.Group();
-    scene.add(proteinGroup);
-    camera.position.z = 25;
+    // Pro Lighting
+    const light1 = new THREE.DirectionalLight(0xffffff, 1);
+    light1.position.set(1, 1, 1);
+    scene.add(light1);
+    scene.add(new THREE.AmbientLight(0x333333));
 
-    function animate() {
-        requestAnimationFrame(animate);
-        proteinGroup.rotation.y += 0.005;
-        proteinGroup.rotation.x += 0.002;
-        renderer.render(scene, camera);
-    }
-    animate();
-
-    async function runBio(isMutation = false) {
-        const seq = document.getElementById('sequence').value;
+    async function runBio() {
         const res = await fetch('/simulate_bio', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                sequence: seq,
-                temp: document.getElementById('temp').value,
-                mutation_mode: isMutation
+                sequence: document.getElementById('seq').value,
+                ph: document.getElementById('ph').value,
+                salt: document.getElementById('salt').value
             })
         });
         const data = await res.json();
         
-        while(proteinGroup.children.length > 0) { proteinGroup.remove(proteinGroup.children[0]); }
+        while(molGroup.children.length > 0) molGroup.remove(molGroup.children[0]);
+        document.getElementById('label-container').innerHTML = "";
+
+        const points = data.nodes.map(n => new THREE.Vector3(n.x, n.y, n.z));
+        const curve = new THREE.CatmullRomCurve3(points);
         
-        data.nodes.forEach((n, idx) => {
-            const geo = new THREE.SphereGeometry(0.6, 16, 16);
-            const mat = new THREE.MeshBasicMaterial({ color: isMutation ? 0xFF0000 : 0x00FF41, wireframe: true });
-            const sphere = new THREE.Mesh(geo, mat);
-            sphere.position.set(n.x, n.y, n.z);
-            proteinGroup.add(sphere);
+        // --- Create Ribbon/Helix Structure ---
+        const tubeGeo = new THREE.TubeGeometry(curve, 100, 0.8, 8, false);
+        const material = new THREE.MeshPhongMaterial({ 
+            vertexColors: true, 
+            shininess: 100,
+            side: THREE.DoubleSide
+        });
+        
+        // Color coding based on potential (Blue to Red)
+        const colors = [];
+        data.nodes.forEach((n, i) => {
+            const color = new THREE.Color();
+            if (n.struct === "helix") color.setHex(0xff0044); // Red Helices
+            else color.setHex(0x0066ff); // Blue Loops
             
-            if (idx > 0) {
-                const prev = data.nodes[idx-1];
-                const points = [new THREE.Vector3(prev.x, prev.y, prev.z), new THREE.Vector3(n.x, n.y, n.z)];
-                const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-                const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({color: isMutation ? 0x550000 : 0x004411}));
-                proteinGroup.add(line);
+            for(let j=0; j < (tubeGeo.attributes.position.count / data.nodes.length); j++) {
+                colors.push(color.r, color.g, color.b);
+            }
+        });
+        tubeGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        
+        const ribbon = new THREE.Mesh(tubeGeo, material);
+        molGroup.add(ribbon);
+
+        // --- Add Tracking Labels ---
+        data.nodes.forEach((n, i) => {
+            if (i % 4 === 0) { // Label every 4th residue to keep it clean
+                const div = document.createElement('div');
+                div.className = 'label-tag';
+                div.id = `label-${i}`;
+                div.innerText = `${n.type}${i+1}`;
+                document.getElementById('label-container').appendChild(div);
+                n.element = div;
             }
         });
 
-        document.getElementById('pot-display').innerText = data.total_potential;
-        if (!isMutation) document.getElementById('mutation-controls').style.display = 'block';
-        document.getElementById('log').innerHTML += `<p>> ${isMutation ? 'Mutation' : 'Normal'} Fold Complete.</p>`;
+        const box = new THREE.Box3().setFromObject(molGroup);
+        molGroup.position.sub(box.getCenter(new THREE.Vector3()));
+        window.currentNodes = data.nodes;
     }
+
+    function updateLabels() {
+        if (!window.currentNodes) return;
+        window.currentNodes.forEach(n => {
+            if (n.element) {
+                const vector = new THREE.Vector3(n.x + molGroup.position.x, n.y + molGroup.position.y, n.z + molGroup.position.z);
+                vector.project(camera);
+                const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+                const y = -(vector.y * 0.5 - 0.5) * window.innerHeight;
+                n.element.style.transform = `translate(-50%, -50%) translate(${x}px,${y}px)`;
+            }
+        });
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        molGroup.rotation.y += 0.005;
+        updateLabels();
+        renderer.render(scene, camera);
+    }
+    animate();
 </script>
 </body>
 </html>

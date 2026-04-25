@@ -49,6 +49,8 @@ if __name__ == '__main__':
 if __name__ == "__main__":
     # 0.0.0.0 is the magic number that lets the Replit preview see your app
     app.run(host="0.0.0.0", port=5000, debug=True)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=10000) 
 
 
     

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARIDAQ | SECURE CORE</title>
+    <style>
+        body {
+            background-color: #000;
+            color: #00FF41; /* Classic Matrix Green */
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        .container {
+            border: 1px solid #00FF41;
+            padding: 30px;
+            box-shadow: 0 0 15px #00FF41;
+            background: rgba(0, 20, 0, 0.9);
+            width: 80%;
+            max-width: 600px;
+        }
+        h1 { text-shadow: 0 0 10px #00FF41; letter-spacing: 5px; }
+        input {
+            background: #000;
+            border: 1px solid #00FF41;
+            color: #00FF41;
+            padding: 10px;
+            width: 100px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        button {
+            background: #00FF41;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        button:hover { background: #008F11; }
+        #output {
+            margin-top: 30px;
+            text-align: left;
+            border-top: 1px dashed #00FF41;
+            padding-top: 20px;
+            font-size: 0.9em;
+        }
+        .loading { color: yellow; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>ARIDAQ PROTOCOL</h1>
+        <p>> SYSTEM STATUS: ENCRYPTED_READY</p>
+        <p>> ENTER NODE COUNT (N):</p>
+        <input type="number" id="nodeCount" value="1000">
+        <br>
+        <button onclick="runProtocol()">Execute Manifold Search</button>
+
+        <div id="output">
+            <p>> Awaiting user command...</p>
+        </div>
+    </div>
+
+    <script>
+        async function runProtocol() {
+            const n = document.getElementById('nodeCount').value;
+            const output = document.getElementById('output');
+            output.innerHTML = '<p class="loading">> ACCESSING MANIFOLD... PLEASE WAIT...</p>';
+
+            try {
+                const response = await fetch('/solve', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ n: n })
+                });
+                const data = await response.json();
+
+                output.innerHTML = `
+                    <p>> --- SCAN COMPLETE ---</p>
+                    <p>> NODES PROCESSED: ${data.nodes}</p>
+                    <p>> EXECUTION TIME: ${data.time}s</p>
+                    <p>> SYSTEM POTENTIAL: ${data.potential}</p>
+                    <p>> STATUS: <span style="color:white; background:green;">&nbsp;${data.status}&nbsp;</span></p>
+                `;
+            } catch (e) {
+                output.innerHTML = '<p style="color:red;">> ERROR: CORE_BREACH_FAILED</p>';
+            }
+        }
+    </script>
+</body>
+</html>

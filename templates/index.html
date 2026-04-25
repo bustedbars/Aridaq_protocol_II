@@ -1,120 +1,179 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ARIDAQ OS v4.0 | Bio-Security Core</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        /* (Keep your previous styles here) */
-        
-        /* New styles for the mutation feature */
-        #mutation-controls {
-            margin-top: 15px;
-            padding: 10px;
-            border: 1px dashed #FFD700; /* Yellow for attention */
-            display: none;
+        body { 
+            background: #000; 
+            color: #00FF41; 
+            font-family: 'Courier New', monospace; 
+            margin: 0; 
+            overflow: hidden; 
         }
-        .mutation-text { color: #FFD700; }
-        .aa-char { display: inline-block; width: 1.2em; text-align: center; font-weight: bold; }
-        .mutated-char { color: #FF0000; text-decoration: underline; }
-        
-        /* The Glitch effect from the previous step is perfect for this! */
+        #ui-layer { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 320px; 
+            padding: 25px; 
+            background: rgba(0, 20, 0, 0.9); 
+            height: 100vh; 
+            border-right: 2px solid #00FF41; 
+            z-index: 10; 
+            overflow-y: auto;
+            box-shadow: 5px 0 15px rgba(0, 255, 65, 0.2);
+        }
+        .glitch { 
+            font-size: 1.5em;
+            text-shadow: 0 0 10px #00FF41;
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+        }
+        .mode-btn { 
+            background: #000; 
+            color: #00FF41; 
+            border: 1px solid #00FF41; 
+            padding: 12px; 
+            width: 100%; 
+            margin-bottom: 12px; 
+            cursor: pointer; 
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        .mode-btn:hover { background: rgba(0, 255, 65, 0.1); }
+        .mode-btn.active { background: #00FF41; color: #000; }
+        .input-group { margin-bottom: 18px; font-size: 0.85em; }
+        input, select { 
+            background: #000; 
+            border: 1px solid #00FF41; 
+            color: #00FF41; 
+            width: 95%; 
+            padding: 5px;
+            margin-top: 5px;
+        }
+        #canvas-container { 
+            position: absolute; 
+            top: 0; 
+            right: 0; 
+            width: calc(100% - 370px); 
+            height: 100vh; 
+        }
+        #mutation-controls {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px dashed #FFD700;
+            display: none;
+            background: rgba(50, 50, 0, 0.2);
+        }
+        .stats-overlay { 
+            position: absolute; 
+            bottom: 30px; 
+            right: 30px; 
+            background: rgba(0,0,0,0.8); 
+            padding: 20px; 
+            border: 1px solid #00FF41; 
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
 
 <div id="ui-layer">
-    <h1 class="glitch">ARIDAQ PROTOCOL</h1>
-    <button class="mode-btn active" onclick="switchMode('bio')">BIO-MOLECULAR</button>
-    <button class="mode-btn" onclick="switchMode('opt')">LOGISTICS OPTIMIZATION</button>
+    <div class="glitch">ARIDAQ PROTOCOL v4.0</div>
+    
+    <div class="input-group">
+        <button class="mode-btn active" onclick="switchMode('bio')">BIO-MOLECULAR</button>
+        <button class="mode-btn" onclick="switchMode('opt')">LOGISTICS OPTIMIZATION</button>
+    </div>
 
     <div id="bio-inputs">
         <div class="input-group">
-            <label>AMINO ACID SEQUENCE</label><br>
+            <label>AMINO ACID SEQUENCE</label>
             <input type="text" id="sequence" value="MKTIIALSYIFCLVFA">
         </div>
         <div class="input-group">
             <label>TEMP (K): <span id="t-val">310</span></label>
             <input type="range" min="273" max="400" value="310" id="temp" oninput="document.getElementById('t-val').innerText=this.value">
         </div>
-        <div class="input-group">
-            <label>SALT CONCENTRATION (M)</label><br>
-            <input type="number" id="salt" value="0.15">
-        </div>
-        
         <button class="mode-btn" style="background: #00FF41; color: #000;" onclick="runBio()">FOLD NORMAL PROTEIN</button>
         
         <div id="mutation-controls">
-            <p class="mutation-text">> WARNING: CORE BREACH SUCCESSFUL</p>
-            <p>> SEQUENCE INJECTED: <span id="mutated-display"></span></p>
-            <p class="mutation-text">> MUTATION: <span id="mutation-code"></span></p>
-            <button class="mode-btn" style="background: #FFD700; color: #000;" onclick="runBio(true)">SIMULATE MUTATION MOVIE</button>
+            <p style="color:#FFD700;">> CORE BREACH DETECTED</p>
+            <p id="mutated-display" style="word-break: break-all; font-size:0.8em;"></p>
+            <button class="mode-btn" style="background: #FFD700; color: #000;" onclick="runBio(true)">INJECT MUTATION</button>
         </div>
     </div>
-    
+
+    <div id="log" style="font-size: 0.7em; margin-top: 20px; border-top: 1px solid #333; padding-top:10px;">
+        <p>> System Standby...</p>
     </div>
+</div>
 
 <div id="canvas-container"></div>
 
-<div class="stats-overlay" id="stats">
+<div class="stats-overlay">
     <p>DEBYE LENGTH: 5000Å</p>
-    <p>TOTAL POTENTIAL: <span id="pot-display">0.00e+00</span></p>
+    <p>POTENTIAL: <span id="pot-display">0.00e+00</span></p>
 </div>
 
 <script>
-    // --- (3D Engine code remains same as before) ---
-    
-    // Global variable to store the original sequence
-    let originalSeq = "";
+    // --- 3D ENGINE ---
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, (window.innerWidth-370)/window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth - 370, window.innerHeight);
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+    const proteinGroup = new THREE.Group();
+    scene.add(proteinGroup);
+    camera.position.z = 25;
+
+    function animate() {
+        requestAnimationFrame(animate);
+        proteinGroup.rotation.y += 0.005;
+        proteinGroup.rotation.x += 0.002;
+        renderer.render(scene, camera);
+    }
+    animate();
 
     async function runBio(isMutation = false) {
-        if (!isMutation) {
-            originalSeq = document.getElementById('sequence').value;
-        }
-
-        document.getElementById('log').innerHTML += `<p>> Applying ${isMutation ? 'Mutated' : 'Normal'} Yukawa Shields...</p>`;
-        
+        const seq = document.getElementById('sequence').value;
         const res = await fetch('/simulate_bio', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                sequence: originalSeq,
+                sequence: seq,
                 temp: document.getElementById('temp').value,
-                mutation_mode: isMutation,
-                original_sequence: originalSeq
+                mutation_mode: isMutation
             })
         });
         const data = await res.json();
         
-        // --- Clear old and build new 3D "movie" ---
-        while(protein.children.length > 0) { protein.remove(protein.children[0]); }
+        while(proteinGroup.children.length > 0) { proteinGroup.remove(proteinGroup.children[0]); }
         
-        data.nodes.forEach(n => {
-            const sphere = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: isMutation ? 0xFF0000 : 0x00FF41 }));
+        data.nodes.forEach((n, idx) => {
+            const geo = new THREE.SphereGeometry(0.6, 16, 16);
+            const mat = new THREE.MeshBasicMaterial({ color: isMutation ? 0xFF0000 : 0x00FF41, wireframe: true });
+            const sphere = new THREE.Mesh(geo, mat);
             sphere.position.set(n.x, n.y, n.z);
-            protein.add(sphere);
-        });
-        
-        // --- Update UI for Mutation vs Normal ---
-        document.getElementById('pot-display').innerText = data.total_potential;
-        
-        if (isMutation) {
-            document.getElementById('mutation-code').innerText = data.mutation_details;
-            // Update the sequence display to highlight the mutation
-            let seqHTML = "";
-            for (let i = 0; i < data.active_sequence.length; i++) {
-                if (data.original_sequence[i] !== data.active_sequence[i]) {
-                    seqHTML += `<span class="aa-char mutated-char">${data.active_sequence[i]}</span>`;
-                } else {
-                    seqHTML += `<span class="aa-char">${data.active_sequence[i]}</span>`;
-                }
+            proteinGroup.add(sphere);
+            
+            if (idx > 0) {
+                const prev = data.nodes[idx-1];
+                const points = [new THREE.Vector3(prev.x, prev.y, prev.z), new THREE.Vector3(n.x, n.y, n.z)];
+                const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+                const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({color: isMutation ? 0x550000 : 0x004411}));
+                proteinGroup.add(line);
             }
-            document.getElementById('mutated-display').innerHTML = seqHTML;
-        } else {
-            // Show the mutation controls only after a normal run
-            document.getElementById('mutation-controls').style.display = 'block';
-        }
+        });
+
+        document.getElementById('pot-display').innerText = data.total_potential;
+        if (!isMutation) document.getElementById('mutation-controls').style.display = 'block';
+        document.getElementById('log').innerHTML += `<p>> ${isMutation ? 'Mutation' : 'Normal'} Fold Complete.</p>`;
     }
 </script>
 </body>
 </html>
-

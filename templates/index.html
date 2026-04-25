@@ -1,66 +1,120 @@
-<style>
-    /* Add this to your existing styles */
-    #console {
-        background: #000;
-        border: 1px solid #00FF41;
-        height: 200px;
-        overflow-y: scroll;
-        padding: 10px;
-        margin-top: 20px;
-        font-size: 0.8em;
-        text-align: left;
-        color: #00FF41;
-    }
-    .glitch { animation: glitch 1s linear infinite; }
-    @keyframes glitch {
-        2%, 64% { transform: translate(2px, 0) skew(0deg); }
-        4%, 60% { transform: translate(-2px, 0) skew(0deg); }
-    }
-</style>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ARIDAQ OS v4.0 | Bio-Security Core</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        /* (Keep your previous styles here) */
+        
+        /* New styles for the mutation feature */
+        #mutation-controls {
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px dashed #FFD700; /* Yellow for attention */
+            display: none;
+        }
+        .mutation-text { color: #FFD700; }
+        .aa-char { display: inline-block; width: 1.2em; text-align: center; font-weight: bold; }
+        .mutated-char { color: #FF0000; text-decoration: underline; }
+        
+        /* The Glitch effect from the previous step is perfect for this! */
+    </style>
+</head>
+<body>
 
-<div class="container">
-    <h1 class="glitch">ARIDAQ PROTOCOL v2.0</h1>
-    <p>NODE INPUT: <input type="number" id="nodeCount" value="1000000"></p>
-    <button onclick="executeProtocol()">RUN DEEP SCAN</button>
-    
-    <div id="console">
-        <p>> SYSTEM IDLE...</p>
+<div id="ui-layer">
+    <h1 class="glitch">ARIDAQ PROTOCOL</h1>
+    <button class="mode-btn active" onclick="switchMode('bio')">BIO-MOLECULAR</button>
+    <button class="mode-btn" onclick="switchMode('opt')">LOGISTICS OPTIMIZATION</button>
+
+    <div id="bio-inputs">
+        <div class="input-group">
+            <label>AMINO ACID SEQUENCE</label><br>
+            <input type="text" id="sequence" value="MKTIIALSYIFCLVFA">
+        </div>
+        <div class="input-group">
+            <label>TEMP (K): <span id="t-val">310</span></label>
+            <input type="range" min="273" max="400" value="310" id="temp" oninput="document.getElementById('t-val').innerText=this.value">
+        </div>
+        <div class="input-group">
+            <label>SALT CONCENTRATION (M)</label><br>
+            <input type="number" id="salt" value="0.15">
+        </div>
+        
+        <button class="mode-btn" style="background: #00FF41; color: #000;" onclick="runBio()">FOLD NORMAL PROTEIN</button>
+        
+        <div id="mutation-controls">
+            <p class="mutation-text">> WARNING: CORE BREACH SUCCESSFUL</p>
+            <p>> SEQUENCE INJECTED: <span id="mutated-display"></span></p>
+            <p class="mutation-text">> MUTATION: <span id="mutation-code"></span></p>
+            <button class="mode-btn" style="background: #FFD700; color: #000;" onclick="runBio(true)">SIMULATE MUTATION MOVIE</button>
+        </div>
     </div>
+    
+    </div>
+
+<div id="canvas-container"></div>
+
+<div class="stats-overlay" id="stats">
+    <p>DEBYE LENGTH: 5000Å</p>
+    <p>TOTAL POTENTIAL: <span id="pot-display">0.00e+00</span></p>
 </div>
 
 <script>
-    function executeProtocol() {
-        const n = document.getElementById('nodeCount').value;
-        const consoleBox = document.getElementById('console');
-        consoleBox.innerHTML = ''; // Clear console
+    // --- (3D Engine code remains same as before) ---
+    
+    // Global variable to store the original sequence
+    let originalSeq = "";
 
-        // Use EventSource for the real-time "Stream"
-        fetch('/solve', {
+    async function runBio(isMutation = false) {
+        if (!isMutation) {
+            originalSeq = document.getElementById('sequence').value;
+        }
+
+        document.getElementById('log').innerHTML += `<p>> Applying ${isMutation ? 'Mutated' : 'Normal'} Yukawa Shields...</p>`;
+        
+        const res = await fetch('/simulate_bio', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({n: n})
-        }).then(response => {
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-
-            function read() {
-                reader.read().then(({done, value}) => {
-                    if (done) return;
-                    const chunk = decoder.decode(value);
-                    const lines = chunk.split('\n');
-                    lines.forEach(line => {
-                        if (line.startsWith('data: ')) {
-                            const data = JSON.parse(line.replace('data: ', ''));
-                            const p = document.createElement('p');
-                            p.textContent = `> ${data.message || 'PROCESSING...'}`;
-                            consoleBox.appendChild(p);
-                            consoleBox.scrollTop = consoleBox.scrollHeight;
-                        }
-                    });
-                    read();
-                });
-            }
-            read();
+            body: JSON.stringify({
+                sequence: originalSeq,
+                temp: document.getElementById('temp').value,
+                mutation_mode: isMutation,
+                original_sequence: originalSeq
+            })
         });
+        const data = await res.json();
+        
+        // --- Clear old and build new 3D "movie" ---
+        while(protein.children.length > 0) { protein.remove(protein.children[0]); }
+        
+        data.nodes.forEach(n => {
+            const sphere = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: isMutation ? 0xFF0000 : 0x00FF41 }));
+            sphere.position.set(n.x, n.y, n.z);
+            protein.add(sphere);
+        });
+        
+        // --- Update UI for Mutation vs Normal ---
+        document.getElementById('pot-display').innerText = data.total_potential;
+        
+        if (isMutation) {
+            document.getElementById('mutation-code').innerText = data.mutation_details;
+            // Update the sequence display to highlight the mutation
+            let seqHTML = "";
+            for (let i = 0; i < data.active_sequence.length; i++) {
+                if (data.original_sequence[i] !== data.active_sequence[i]) {
+                    seqHTML += `<span class="aa-char mutated-char">${data.active_sequence[i]}</span>`;
+                } else {
+                    seqHTML += `<span class="aa-char">${data.active_sequence[i]}</span>`;
+                }
+            }
+            document.getElementById('mutated-display').innerHTML = seqHTML;
+        } else {
+            // Show the mutation controls only after a normal run
+            document.getElementById('mutation-controls').style.display = 'block';
+        }
     }
 </script>
+</body>
+</html>
+
